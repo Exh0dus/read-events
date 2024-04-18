@@ -1,4 +1,5 @@
 const fs = require('fs');
+require('dotenv').config();
 
 async function storeAllEvents(allEvents) {
     fs.writeFile('./allEvents.json', JSON.stringify(allEvents, null, 2), (err) => {
@@ -35,4 +36,4 @@ function formatTweets(allEvents) {
     return {depositTweets, withdrawTweets};
 }
 
-module.exports = { formatTweets, loadAllEvents, storeAllEvents };
+module.exports = { formatTweets, loadAllEvents, storeAllEvents, getWorkflows };
