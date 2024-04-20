@@ -1,8 +1,10 @@
+const loggers = require('./logger.js');
 const { TwitterApi } = require('twitter-api-v2');
-const { getContractEvents, getTotalStakedBalance } = require('./blockChain.js');
+const { getContractEvents } = require('./blockChain.js');
 const { groupData, toMarkdown, writeToFile } = require('./digest.js');
-const { formatTweets, storeObject, loadObject } = require('./utils.js');
+const { storeObject, loadObject } = require('./utils.js');
 const { pushToGit, getLatestWorkflowStatus } = require('./git.js');
+
 require('dotenv').config();
 
 const TWITTER_AUTH = {
