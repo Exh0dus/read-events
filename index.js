@@ -1,7 +1,7 @@
 const { TwitterApi } = require('twitter-api-v2');
-const { getContractEvents } = require('./blockChain.js');
+const { getContractEvents, getTotalStakedBalance } = require('./blockChain.js');
 const { groupData, toMarkdown, writeToFile } = require('./digest.js');
-const { loadAllEvents, formatTweets } = require('./utils.js');
+const { formatTweets, storeObject, loadObject } = require('./utils.js');
 const { pushToGit, getLatestWorkflowStatus } = require('./git.js');
 require('dotenv').config();
 
@@ -15,14 +15,21 @@ const TWITTER_AUTH = {
 const client = new TwitterApi(TWITTER_AUTH);
 
 async function main() {
-    await getContractEvents().then(groupData).then(toMarkdown).then(md => writeToFile("./Digest/docs/test.md", md));
+  
+   // getContractEvents().then(data => storeObject(data, './allEvents.json'));
+    loadObject('./allEvents.json').then(groupData).then(toMarkdown).then(result => writeToFile("./Digest/docs/"+result.filename, result.markdown));
+
+
+    //await getContractEvents().then(groupData).then(toMarkdown).then(md => writeToFile("./Digest/docs/test.md", md));
     //pushToGit("commit message");
     //const result = await waitForWorkflowCompletion(); // if the result is 'failure' use the link to the .md instead of the page
     //client.v2.tweet('Hello World');
+    //console.log(new Date().toLocaleString("en-US", {timeZone: "America/New_York"}));
 }
 
+main().catch(console.error);
+
 // add logging 
-// get the extra data from the contract 
 // connect things together
 
 

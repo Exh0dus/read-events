@@ -4,11 +4,12 @@ function formatAddress(address) {
     return address.slice(0, 6) + '...' + address.slice(-4);
 }
 
-function groupData(allEvents) {
+function groupData(data) {
     const withdrawGroups = new Map();
     const depositGroups = new Map();
+    const {lastState, currentState, events} = data;
 
-    for (const event of allEvents) {
+    for (const event of events) {
         
         if (event.type === 'deposited') {
            addToGroup(depositGroups, event);
@@ -25,16 +26,19 @@ function groupData(allEvents) {
         }
     }
 
-    return {Deposits: depositGroups, Withdrawals: withdrawGroups};
+    return {maps: {Deposits: depositGroups, Withdrawals: withdrawGroups}, lastState, currentState};
 }
 
-function toMarkdown(maps) {
+function toMarkdown(data) {
     const addressPrefix = "https://etherscan.io/address/"
     const transactionPrefix = "https://etherscan.io/tx/"
     let  markdown = '';
-    for (const property in maps) {
+
+    markdown += generateHeader(data);
+
+    for (const property in data.maps) {
         markdown += `# ${property}\n`;
-        const map = maps[property];
+        const map = data.maps[property];
         for (const [key, values] of map.entries()) {
             markdown += `## ${key}\n`;
             for (const event of values) {
@@ -42,7 +46,7 @@ function toMarkdown(maps) {
             }
         }
     }
-    return markdown;
+    return {filename: `${data.lastState.BlockNumber}_${data.currentState.BlockNumber}.md`,  markdown};
 
     function formatWalletAddress(event) {
         return `[${event.addressEns || formatAddress(event.address)}](${addressPrefix+event.address})`;
@@ -62,6 +66,10 @@ function writeToFile(filename, data) {
             console.log('Successfully wrote to file');
         }
     });
+}
+
+function generateHeader(data) {
+    return `# Zircuit transaction digest\n### ${data.lastState.DateEst} - ${data.currentState.DateEst}\n### Block ${data.lastState.BlockNumber} to ${data.currentState.BlockNumber}\n\n## Total Value Locked: ${data.currentState.Tvl.toPrecision(12)} USD\n\n`;
 }
 
 

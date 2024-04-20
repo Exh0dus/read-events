@@ -1,7 +1,7 @@
 const ethers = require('ethers');
 const contractData = require('./contract.json');
-const readLastLines = require('read-last-lines');
 const fs = require('fs');
+const { storeObject, loadObject } = require('./utils');
 
 require('dotenv').config();
 
@@ -19,12 +19,14 @@ const TokenNameLookup = {
     '0x49446A0874197839D15395B908328a74ccc96Bc0': 'mstETH',
     '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0': 'wstETH',
     '0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549': 'LsETH',
-    '0xE46a5E19B19711332e33F33c2DB3eA143e86Bc10': 'mwBETH'
+    '0xE46a5E19B19711332e33F33c2DB3eA143e86Bc10': 'mwBETH',
+    '0xd5F7838F5C461fefF7FE49ea5ebaF7728bB0ADfa': 'mETH',
+    '0x6ef3D766Dfe02Dc4bF04aAe9122EB9A0Ded25615': 'primeETH'
   };
 
 const eventNames = ['Deposit', 'Withdraw']; 
-const lastBlockFile = './blockNumbers.txt';
 const infuraUrl = `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`;
+const stateFilePath = './Digest/state.json';
 const provider = new ethers.providers.JsonRpcProvider(infuraUrl);
 const contract = new ethers.Contract(contractData.address, contractData.abi, provider);
 
@@ -32,23 +34,26 @@ const contract = new ethers.Contract(contractData.address, contractData.abi, pro
 async function getContractEvents() {
     try {
         let allEvents = [];
-        const fromBlock = await readLastLines.read(lastBlockFile, 1).catch(err => console.error(err));;
-        console.log('fromBlock:', fromBlock);
+        const lastState = await loadObject(stateFilePath);
 
         for (const eventName of eventNames) {
             const filter = contract.filters[eventName]();
 
-            const events = await contract.queryFilter(filter, Number.parseInt(fromBlock), 'latest');
-            const mappedEvents = await Promise.all(events.map(mapEventValues));
+            const events = await contract.queryFilter(filter, Number.parseInt(lastState.BlockNumber), 'latest');
+            const mappedEvents = await Promise.all(events.filter(evt => evt.args.eventId > lastState.EventNumber).map(mapEventValues));
             allEvents = allEvents.concat(mappedEvents);
         }
 
         allEvents.sort((a, b) => a.blockNumber - b.blockNumber);
-        storeLastBlockNumber(allEvents[allEvents.length - 1].blockNumber);
-        return allEvents;
+        const { highestBlockNumber, highestEventId } = getHighestBlockNumberAndEventId(allEvents);
+        const tvl = await getTotalStakedBalance();
+        const currentState = { BlockNumber: highestBlockNumber, EventNumber: highestEventId, Tvl: tvl, DateEst: new Date().toLocaleString("en-US", {timeZone: "America/New_York"}) };
+        await storeObject(currentState, stateFilePath);
+
+        return {lastState, currentState, events: allEvents};
     } catch (error) {
         console.error('Error fetching events:', error);
-        return [];
+        return {lastState: null, currentState: null, events: []};
     }
 }
 
@@ -63,11 +68,20 @@ async function mapEventValues(event) {
         type: getTransactionType(event.event),
         tokenAddr: event.args.token,
         token: TokenNameLookup[event.args.token],
-        amount: ethers.utils.formatUnits(event.args.amount, 18), //assuming that the staking tokens have the same digits as ether  
+        amount: ethers.utils.formatUnits(event.args.amount, 18),
         transaction: event.transactionHash,
         blockNumber: event.blockNumber,
         eventId: event.args.eventId.toString()
     }
+}
+
+function getHighestBlockNumberAndEventId(allEvents) {
+    return allEvents.reduce((acc, event) => {
+        return {
+            highestBlockNumber: Math.max(acc.highestBlockNumber, Number(event.blockNumber)),
+            highestEventId: Math.max(acc.highestEventId, Number(event.eventId))
+        };
+    }, { highestBlockNumber: 0, highestEventId: 0 });
 }
 
 function getTransactionType(eventType) {
@@ -88,8 +102,50 @@ async function lookUpAddress(tokenAddr) {
     }
 }
 
-function storeLastBlockNumber(lastBlockNumber) {
-    fs.appendFile(lastBlockFile,'\n' + lastBlockNumber.toString(), (err) => console.log(err));
+
+async function getTotalStakedBalance() {
+    let totalBalanceUSD = 0;
+    const erc20Interface = new ethers.utils.Interface([
+        'function balanceOf(address owner) view returns (uint256)',
+        'function decimals() view returns (uint8)'
+    ]);
+    const ethPrice = await getUSDPrice('ETH');
+
+
+    for (const tokenAddress of Object.keys(TokenNameLookup)) {
+        try {
+            const tokenContract = new ethers.Contract(tokenAddress, erc20Interface, provider);
+            const balance = await tokenContract.balanceOf(contractData.address);
+            const decimals = await tokenContract.decimals();
+
+            if (TokenNameLookup[tokenAddress] === 'USDe') {
+                totalBalanceUSD += Number.parseFloat(ethers.utils.formatUnits(balance, decimals));
+
+                
+            } else {
+                totalBalanceUSD += Number.parseFloat(ethers.utils.formatUnits(balance, decimals)) * ethPrice;
+            }
+
+        
+        } catch (error) {
+            console.error(`Error fetching balance for token: ${tokenAddress}`, error);
+        }
+    }
+
+    return totalBalanceUSD;
 }
 
-module.exports = { getContractEvents };
+async function getUSDPrice(tokenSymbol) {
+    const url = `https://min-api.cryptocompare.com/data/price?fsym=${tokenSymbol}&tsyms=USD`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.Response === 'Error') {
+        console.error(`Error fetching price for token: ${tokenSymbol} ${JSON.stringify(data)}`);
+        return 0;
+    }
+
+    return Number.parseFloat(data.USD);
+}
+
+module.exports = { getContractEvents, getTotalStakedBalance };

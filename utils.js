@@ -2,17 +2,23 @@ const fs = require('fs');
 require('dotenv').config();
 
 async function storeAllEvents(allEvents) {
-    fs.writeFile('./allEvents.json', JSON.stringify(allEvents, null, 2), (err) => {
-        if (err) console.log(err);
-    });
-
+    storeObject(allEvents, './allEvents.json');
     return allEvents.length;
 }
 
 async function loadAllEvents() {
-    const data = await fs.promises.readFile('./allEvents.json', 'utf8');
-    const allEvents = JSON.parse(data);
-    return allEvents;
+    return loadObject('./allEvents.json');
+}
+
+async function storeObject(object, filePath) {
+    fs.writeFile(filePath, JSON.stringify(object, null, 2), (err) => {
+        if (err) console.log(err);
+    });
+}
+
+async function loadObject(filePath) {
+    const data = await fs.promises.readFile(filePath, 'utf8');
+    return JSON.parse(data);
 }
 
 function formatTweets(allEvents) {
@@ -36,4 +42,4 @@ function formatTweets(allEvents) {
     return {depositTweets, withdrawTweets};
 }
 
-module.exports = { formatTweets, loadAllEvents, storeAllEvents, getWorkflows };
+module.exports = { formatTweets, loadAllEvents, storeAllEvents, storeObject, loadObject};
