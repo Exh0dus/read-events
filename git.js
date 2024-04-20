@@ -10,9 +10,17 @@ function pushToGit(comment) {
     })
     .removeRemote('origin')
     .addRemote('origin', process.env.DIGEST_REMOTE)
-    .add('./docs/*')
-    .commit(comment||'Update Journal')
-    .push(['-u', 'origin', 'main']);
+    .pull('origin', 'main')
+    .then(() => {
+        return git(`./${process.env.GIT_PROJECT}`)
+            .add('./docs/*')
+            .add('state.json')
+            .commit(comment||'Update Journal')
+            .push(['-u', 'origin', 'main']);
+    })
+    .catch((err) => {
+        console.error('Failed to pull before commit: ', err);
+    });
 }
 
 async function getLatestWorkflowStatus() {
@@ -31,6 +39,7 @@ async function getLatestWorkflowStatus() {
 }
 
 async function waitForWorkflowCompletion(queryFrequency = 20000, timeout = 600000) {
+    console.info('Waiting for workflow completion...');
     return new Promise((resolve, reject) => {
         const intervalId = setInterval(async () => {
             try {
@@ -38,6 +47,7 @@ async function waitForWorkflowCompletion(queryFrequency = 20000, timeout = 60000
 
                 if (latestRun.status === 'completed') {
                     clearInterval(intervalId);
+                    console.info(`Workflow completed with status: ${latestRun.conclusion}`);
                     resolve(latestRun.conclusion);
                 }
             } catch (error) {
@@ -48,6 +58,7 @@ async function waitForWorkflowCompletion(queryFrequency = 20000, timeout = 60000
 
         const timeoutId = setTimeout(() => {
             clearInterval(intervalId);
+            console.error('Timeout waiting for workflow completion');
             reject(new Error('Timeout waiting for workflow completion'));
         }, timeout);
     });

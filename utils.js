@@ -1,15 +1,6 @@
 const fs = require('fs');
 require('dotenv').config();
 
-async function storeAllEvents(allEvents) {
-    storeObject(allEvents, './allEvents.json');
-    return allEvents.length;
-}
-
-async function loadAllEvents() {
-    return loadObject('./allEvents.json');
-}
-
 async function storeObject(object, filePath) {
     fs.writeFile(filePath, JSON.stringify(object, null, 2), (err) => {
         if (err) console.log(err);
@@ -21,25 +12,25 @@ async function loadObject(filePath) {
     return JSON.parse(data);
 }
 
-function formatTweets(allEvents) {
-    const transactionPrefix = "https://etherscan.io/tx/"
-    const depositTweets = [];
-    const withdrawTweets = [];
+function formatTweet(transactions, filename, success) {
+    const link = success 
+        ? "https://zircatsteak.github.io/Digest/"+filename.slice(0, -3)
+        : "https://github.com/ZircatSteak/Digest/blob/main/docs/"+filename;
+        
+    const tvl = transactions.currentState.Tvl;
+    const period = (new Date(transactions.currentState.DateEst) - new Date(transactions.lastState.DateEst));
+    const depositCount = Array.from(transactions.maps.Deposits.values()).reduce((total, currentArray) => total + currentArray.length, 0);
+    const withdrawCount = Array.from(transactions.maps.Withdrawals.values()).reduce((total, currentArray) => total + currentArray.length, 0);
 
-    for (const event of allEvents) {
-        const tweet = `• ${formatAddress(event.address)} ${event.type} ${ Number(event.amount).toPrecision(6)} ${event.token} in ${transactionPrefix+event.transaction}`;
-        if (event.type === 'deposited') {
-            depositTweets.push(tweet);
-        } else {
-            withdrawTweets.push(tweet);
-        }
-    }
+    return `🚀 Zircuit Staking Update 🚀
+
+    In the past ${Math.floor(period / 1000 / 60)} minutes:
+    🔹 ${depositCount} deposits
+    🔸 ${withdrawCount} withdrawals
     
-    function formatAddress(address) {
-        return address.slice(0, 6) + '...' + address.slice(-4);
-    }
-
-    return {depositTweets, withdrawTweets};
+    🔐 Current Total Value Locked: ${Number(tvl).toPrecision(12)} USD
+    
+    📊 Dive deeper into the transaction digest here: ${link}`;
 }
 
-module.exports = { formatTweets, loadAllEvents, storeAllEvents, storeObject, loadObject};
+module.exports = { formatTweet, storeObject, loadObject};

@@ -29,6 +29,7 @@ const infuraUrl = `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`;
 const stateFilePath = './Digest/state.json';
 const provider = new ethers.providers.JsonRpcProvider(infuraUrl);
 const contract = new ethers.Contract(contractData.address, contractData.abi, provider);
+const ensCache = new Map();
 
 
 async function getContractEvents() {
@@ -38,8 +39,10 @@ async function getContractEvents() {
 
         for (const eventName of eventNames) {
             const filter = contract.filters[eventName]();
+            console.info(`Fetching ${eventName} events...`);
 
             const events = await contract.queryFilter(filter, Number.parseInt(lastState.BlockNumber), 'latest');
+            console.info(`Mapping ${events.length} ${eventName} events...`);
             const mappedEvents = await Promise.all(events.filter(evt => evt.args.eventId > lastState.EventNumber).map(mapEventValues));
             allEvents = allEvents.concat(mappedEvents);
         }
@@ -93,9 +96,15 @@ function getType(eventType) {
     return eventType.includes('Withdraw') ? "withdrawer" : "depositor";
 }
 
-async function lookUpAddress(tokenAddr) {
+async function lookUpAddress(walletAddr) {
+    if (ensCache.has(walletAddr)) {
+        return ensCache.get(walletAddr);
+    }
+
     try {
-        return await provider.lookupAddress(tokenAddr);
+        const ensName = await provider.lookupAddress(walletAddr);
+        ensCache.set(walletAddr, ensName);
+        return ensName;
     } catch (error) {
         console.error('Error resolving ENS name:', error);
         return null;
