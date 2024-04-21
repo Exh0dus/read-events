@@ -9,7 +9,7 @@ function gitPushDigest(comment) {
         stderr.pipe(process.stderr);
     })
     .removeRemote('origin')
-    .addRemote('origin', process.env.DIGEST_REMOTE)
+    .addRemote('origin', process.env.DIGEST_REPO)
     .add('./docs/*')
     .add('state.json')
     .commit(comment||'Update Journal')
