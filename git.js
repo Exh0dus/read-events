@@ -2,7 +2,7 @@ const axios = require('axios');
 const git = require('simple-git');
 require('dotenv').config();
 
-function pushToGit(comment) {
+function gitPushDigest(comment) {
     git(`./${process.env.GIT_PROJECT}`)
     .outputHandler((command, stdout, stderr) => {
         stdout.pipe(process.stdout);
@@ -10,14 +10,21 @@ function pushToGit(comment) {
     })
     .removeRemote('origin')
     .addRemote('origin', process.env.DIGEST_REMOTE)
-    .pull('origin', 'main')
-    .then(() => {
-        return git(`./${process.env.GIT_PROJECT}`)
-            .add('./docs/*')
-            .add('state.json')
-            .commit(comment||'Update Journal')
-            .push(['-u', 'origin', 'main']);
+    .add('./docs/*')
+    .add('state.json')
+    .commit(comment||'Update Journal')
+    .push(['-u', 'origin', 'main']);
+}
+
+function gitPull(folder, repo, branch = 'main') {
+    git(folder)
+    .outputHandler((command, stdout, stderr) => {
+        stdout.pipe(process.stdout);
+        stderr.pipe(process.stderr);
     })
+    .removeRemote('origin')
+    .addRemote('origin', repo)
+    .pull('origin', branch)
     .catch((err) => {
         console.error('Failed to pull before commit: ', err);
     });
@@ -76,4 +83,4 @@ async function getWorkflows() {
     }
 }
 
-module.exports = { pushToGit, waitForWorkflowCompletion };
+module.exports = { gitPushDigest, gitPull, waitForWorkflowCompletion };
