@@ -69,7 +69,7 @@ function writeToFile(filename, data) {
 }
 
 function generateHeader(data) {
-    return `# Zircuit transaction digest\n### ${data.lastState.DateEst} - ${data.currentState.DateEst}\n### Block ${data.lastState.BlockNumber} to ${data.currentState.BlockNumber}\n\n## Total Value Locked: ${data.currentState.Tvl.toPrecision(12)} USD\n\n`;
+    return `# Zircuit transaction digest\n### ${data.lastState.DateEst} - ${data.currentState.DateEst} (EST)\n### Block ${data.lastState.BlockNumber} to ${data.currentState.BlockNumber}\n\n## Total Value Locked: ${data.currentState.Tvl.toPrecision(12)} USD\n\n`;
 }
 
 

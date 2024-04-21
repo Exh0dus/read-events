@@ -63,7 +63,8 @@ async function getContractEvents() {
 
 async function mapEventValues(event) {
     const address = event.args[getType(event.event)];
-    const ens = await lookUpAddress(address);
+    //Ens lookup keeps reverting without reason, so it's disabled for now 
+    const ens = null; // await lookUpAddress(address);
 
     return {
         address: address,
