@@ -19,7 +19,7 @@ function formatTweet(transactions, filename, success) {
         
     const tvl = transactions.currentState.Tvl;
     const period = (new Date(transactions.currentState.DateEst) - new Date(transactions.lastState.DateEst));
-    const delta = transactions.lastState.Tvl - transactions.currentState.Tvl;
+    const delta = transactions.currentState.Tvl - transactions.lastState.Tvl;
     const isIncrease = delta > 0;
     const depositCount = Array.from(transactions.maps.Deposits.values()).reduce((total, currentArray) => total + currentArray.length, 0);
     const withdrawCount = Array.from(transactions.maps.Withdrawals.values()).reduce((total, currentArray) => total + currentArray.length, 0);
