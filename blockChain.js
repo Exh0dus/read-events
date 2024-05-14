@@ -124,22 +124,29 @@ async function getTotalStakedBalance() {
 
 
     for (const tokenAddress of Object.keys(TokenNameLookup)) {
-        try {
-            const tokenContract = new ethers.Contract(tokenAddress, erc20Interface, provider);
-            const balance = await tokenContract.balanceOf(contractData.address);
-            const decimals = await tokenContract.decimals();
+        let retries = 3;
 
-            if (TokenNameLookup[tokenAddress] === 'USDe') {
-                totalBalanceUSD += Number.parseFloat(ethers.utils.formatUnits(balance, decimals));
+        while (retries > 0) {
+            try {
+                const tokenContract = new ethers.Contract(tokenAddress, erc20Interface, provider);
+                const balance = await tokenContract.balanceOf(contractData.address);
+                const decimals = await tokenContract.decimals();
 
+                if (TokenNameLookup[tokenAddress] === 'USDe') {
+                    totalBalanceUSD += Number.parseFloat(ethers.utils.formatUnits(balance, decimals));
+                } else {
+                    totalBalanceUSD += Number.parseFloat(ethers.utils.formatUnits(balance, decimals)) * ethPrice;
+                }
+
+                break;
+            } catch (error) {
+                console.error(`Error fetching balance for token: ${tokenAddress} retry count ${retries}`, error);
+                retries--;
                 
-            } else {
-                totalBalanceUSD += Number.parseFloat(ethers.utils.formatUnits(balance, decimals)) * ethPrice;
+                if (retries === 0) {
+                    console.error(`Failed to fetch balance for token: ${tokenAddress} after 3 attempts`);
+                }
             }
-
-        
-        } catch (error) {
-            console.error(`Error fetching balance for token: ${tokenAddress}`, error);
         }
     }
 
